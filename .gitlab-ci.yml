@@ -34,8 +34,6 @@ test:
   stage: test
   script:
   - python setup.py test
-  - echo "username = $PYPI_USERNAME"
-  - echo "password = $PYPI_PASSWORD"
 
 build wheels:
   stage: build
@@ -50,8 +48,6 @@ distribute:
   stage: deploy
   when: on_success
   only:
-    - branches@clavis/master
+    - master@tgrx/clavis
   script:
-    - echo "username = $PYPI_USERNAME"
-    - echo "password = $PYPI_PASSWORD"
-
+    - twine upload -u "$PYPI_USERNAME"-p "$PYPI_PASSWORD" dist/*
