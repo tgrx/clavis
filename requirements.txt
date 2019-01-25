@@ -1,0 +1,5 @@
+black
+dynaconf
+SQLAlchemy
+twine
+wheel
