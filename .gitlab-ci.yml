@@ -34,6 +34,7 @@ test:
   stage: test
   script:
   - python setup.py test
+  - coverage run --source clavis/ setup.py test && coverage report
 
 build wheels:
   stage: build

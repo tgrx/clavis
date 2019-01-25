@@ -45,8 +45,8 @@ class Transaction(object):
         result = []
 
         for idx, query in enumerate(queries, 1):
-            if not isinstance(query, (sql.Select, sql.Update, sql.Delete)):
-                raise ValueError(f"query {idx}: unsupported type")
+            if not isinstance(query, (sql.Insert, sql.Update, sql.Delete)):
+                raise ValueError(f"query {idx}: unsupported type {type(query)}")
 
             h = hash(query)
             self._postponed[h] = query
@@ -58,6 +58,18 @@ class Transaction(object):
     def remove_postponed(self, query_id: int):
         if query_id in self._postponed:
             del self._postponed[query_id]
+
+    def commit(self):
+        if not self._session:
+            raise states.Committed()
+
+        self.session.commit()
+
+    def rollback(self):
+        if not self._session:
+            raise states.RolledBack()
+
+        self.session.rollback()
 
     def __enter__(self):
         self.__verify_reentrance()

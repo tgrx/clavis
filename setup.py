@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="clavis",
-    version="0.0.1b0",
+    version="0.0.1b1",
     description="Context manager for SQLAlchemy transaction",
     author="Alexander Sidorov",
     author_email="alex.n.sidorov@gmail.com",

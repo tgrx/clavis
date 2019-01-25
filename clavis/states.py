@@ -1,8 +1,9 @@
+import typing as ty
 import weakref
 
 
 class StepState(Exception):
-    def __init__(self, origin, *args, **kwargs):
+    def __init__(self, origin: ty.Optional[object] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.__origin = None
