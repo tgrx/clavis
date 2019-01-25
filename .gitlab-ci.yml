@@ -50,4 +50,4 @@ distribute:
   only:
     - master@tgrx/clavis
   script:
-    - twine upload -u "$PYPI_USERNAME"-p "$PYPI_PASSWORD" dist/*
+    - twine upload -u "$PYPI_USERNAME" -p "$PYPI_PASSWORD" dist/*
