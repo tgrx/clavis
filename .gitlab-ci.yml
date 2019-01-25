@@ -23,12 +23,35 @@ before_script:
   - pip install virtualenv
   - virtualenv venv
   - source venv/bin/activate
-  - pip install --requirement requirements-test.txt
+  - pip install --requirement requirements.txt
+
+stages:
+  - test
+  - build
+  - deploy
 
 test:
+  stage: test
   script:
   - python setup.py test
+  - echo "username = $PYPI_USERNAME"
+  - echo "password = $PYPI_PASSWORD"
 
-run:
+build wheels:
+  stage: build
+  when: on_success
   script:
-  - python setup.py sdist
+    - python setup.py bdist_wheel
+  artifacts:
+    paths:
+      - dist/
+
+distribute:
+  stage: deploy
+  when: on_success
+  only:
+    - branches@clavis/master
+  script:
+    - echo "username = $PYPI_USERNAME"
+    - echo "password = $PYPI_PASSWORD"
+
