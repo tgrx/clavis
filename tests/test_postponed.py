@@ -1,13 +1,10 @@
-import os
 from contextlib import closing
-from unittest import TestCase
 
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
 
 import clavis
-
-DATABASE_URL = "sqlite:///testdb.sqlite"
+from tests.base import ClavisTestBase
 
 Base = declarative_base()
 
@@ -19,95 +16,134 @@ class TestTable(Base):
     value = sa.Column(sa.Text)
 
 
-engine = sa.create_engine(DATABASE_URL)
+class PostponedQueriesTest(ClavisTestBase):
+    def test_execute_postponed_on_context_exit(self):
+        with self.dbf.transaction() as t:
+            t.session.execute(sa.insert(TestTable).values({TestTable.value: "one"}))
 
-
-def get_value(object_id):
-    query = sa.text("select value from test_table where id = :arg")
-    with closing(engine.connect()) as conn:
-        value = conn.execute(query, arg=object_id).scalar()
-    return value
-
-
-def get_id(object_value):
-    query = sa.text("select id from test_table where value = :arg limit 1")
-    with closing(engine.connect()) as conn:
-        value = conn.execute(query, arg=object_value).scalar()
-    return value
-
-
-class PostponedQueriesTest(TestCase):
-    def test_flow(self):
-        with clavis.Transaction() as t:
-            query = sa.insert(TestTable).values({TestTable.value: "x"})
-            t.session.execute(query)
-
-        x = get_id("x")
-        value = get_value(x)
-        self.assertEqual(value, "x", "commit of insert failed")
-
-        with clavis.Transaction() as t:
-            t.session.execute(sa.insert(TestTable).values({TestTable.value: "y"}))
-
-            y = t.session.execute(
-                sa.select([TestTable.id]).where(TestTable.value == "y").limit(1)
+            i_one = t.session.execute(
+                sa.select([TestTable.id]).where(TestTable.value == "one").limit(1)
             ).scalar()
 
             t.postpone(
                 sa.update(TestTable)
-                .where(TestTable.id == y)
-                .values({TestTable.value: "yyy"})
+                .where(TestTable.id == i_one)
+                .values({TestTable.value: "two"})
             )
 
-        yyy = get_id("yyy")
-        self.assertTrue(yyy, "postponed-after-commit update failed")
-        self.assertEqual(y, yyy, "general data corruption")
+        i_two = self.get_id("two")
+        self.assertTrue(
+            i_two, "failed execute of postponed update query on context exit"
+        )
 
-        with clavis.Transaction() as t:
-            t.session.execute(
-                sa.update(TestTable)
-                .values({TestTable.value: "yy"})
-                .where(TestTable.id == yyy)
-            )
+        self.assertEqual(
+            i_one, i_two, "failed update of previous value with same id: id mismatch"
+        )
 
-            t.postpone(
-                sa.update(TestTable)
-                .where(TestTable.id == yyy)
-                .values({TestTable.value: "yyy"})
-            )
+        i_null = self.get_id("one")
+        self.assertFalse(
+            i_null, "failed execute of postponed update query on context exit"
+        )
+
+    def test_execute_postponed_on_explicit_txn_commit(self):
+        with self.dbf.transaction() as t:
+            t.session.execute(sa.insert(TestTable).values({TestTable.value: "one"}))
+            t.postpone(sa.insert(TestTable).values({TestTable.value: "two"}))
+
+            t.commit()
+
+        i_one = self.get_id("one")
+        self.assertTrue(i_one, "failed execute of insert query on explicit txn commit")
+
+        i_two = self.get_id("two")
+        self.assertTrue(
+            i_two, "failed execute of postponed insert query on explicit txn commit"
+        )
+
+    def test_execute_postponed_on_explicit_txn_rollback(self):
+        with self.dbf.transaction() as t:
+            t.session.execute(sa.insert(TestTable).values({TestTable.value: "one"}))
+            t.postpone(sa.insert(TestTable).values({TestTable.value: "two"}))
+
+            t.rollback()
+
+        i_one = self.get_id("one")
+        self.assertFalse(
+            i_one, "failed rollback of insert query on explicit txn rollback"
+        )
+
+        i_two = self.get_id("two")
+        self.assertTrue(
+            i_two, "failed execute of postponed insert query on explicit txn rollback"
+        )
+
+    def test_execute_postponed_on_explicit_session_commit(self):
+        with self.dbf.transaction() as t:
+            t.session.execute(sa.insert(TestTable).values({TestTable.value: "one"}))
+            t.postpone(sa.insert(TestTable).values({TestTable.value: "two"}))
+
+            t.session.commit()
+
+        i_one = self.get_id("one")
+        self.assertTrue(
+            i_one, "failed execute of insert query on explicit session commit"
+        )
+
+        i_two = self.get_id("two")
+        self.assertTrue(
+            i_two, "failed execute of postponed insert query on explicit session commit"
+        )
+
+    def test_execute_postponed_on_explicit_session_rollback(self):
+        with self.dbf.transaction() as t:
+            t.session.execute(sa.insert(TestTable).values({TestTable.value: "one"}))
+            t.postpone(sa.insert(TestTable).values({TestTable.value: "two"}))
 
             t.session.rollback()
 
-        yyy = get_id("yyy")
-        self.assertTrue(yyy, "postponed-after-rollback update failed")
+        i_one = self.get_id("one")
+        self.assertFalse(
+            i_one, "failed rollback of insert query on explicit session rollback"
+        )
 
-        yy = get_id("yy")
-        self.assertIsNone(yy, "rollback failed")
+        i_two = self.get_id("two")
+        self.assertTrue(
+            i_two,
+            "failed execute of postponed insert query on explicit session rollback",
+        )
 
+    def test_execute_postponed_on_exception(self):
         with self.assertRaises(ZeroDivisionError):
-            with clavis.Transaction() as t:
-                t.session.execute(sa.delete(TestTable).where(TestTable.id == yyy))
+            with self.dbf.transaction() as t:
+                t.session.execute(sa.insert(TestTable).values({TestTable.value: "one"}))
+                t.postpone(sa.insert(TestTable).values({TestTable.value: "two"}))
 
-                t.postpone(
-                    sa.update(TestTable)
-                    .where(TestTable.id == yyy)
-                    .values({TestTable.value: "yy"})
-                )
+                raise ZeroDivisionError
 
-                raise ZeroDivisionError()
+        i_one = self.get_id("one")
+        self.assertFalse(i_one, "failed rollback of insert query on exception")
 
-        yyy = get_id("yyy")
-        self.assertIsNone(yyy, "postponed-after-exception update failed")
-
-        yy = get_id("yy")
-        self.assertTrue(yy, "postponed-after-exception update failed")
+        i_two = self.get_id("two")
+        self.assertTrue(i_two, "failed execute of postponed insert query on exception")
 
     def setUp(self):
-        with open("./testdb.sqlite", "w"):
-            pass
-        TestTable.metadata.create_all(engine)
-
-        clavis.configure(DATABASE_URL)
+        super().setUp()
+        db = self.setup_db("test", Base.metadata)
+        self.engine = db.engine
+        self.dbf = clavis.TransactionFactory(database_url=db.url)
 
     def tearDown(self):
-        os.remove("./testdb.sqlite")
+        self.cleanup()
+        super().tearDown()
+
+    def get_value(self, object_id):
+        query = sa.text("select value from test_table where id = :arg")
+        with closing(self.engine.connect()) as conn:
+            value = conn.execute(query, arg=object_id).scalar()
+        return value
+
+    def get_id(self, object_value):
+        query = sa.text("select id from test_table where value = :arg limit 1")
+        with closing(self.engine.connect()) as conn:
+            value = conn.execute(query, arg=object_value).scalar()
+        return value

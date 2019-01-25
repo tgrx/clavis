@@ -19,7 +19,7 @@ class Session(_Session):
         raise states.Committed(self.__origin)
 
     def rollback(self, internal: bool = False):
-        rollback_result = super(Session, self).rollback()
+        rollback_result = super().rollback()
 
         if internal:
             return rollback_result
