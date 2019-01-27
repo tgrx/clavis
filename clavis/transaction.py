@@ -18,9 +18,11 @@ class Transaction(object):
         self, database_url: ty.Optional[str] = None, echo: ty.Optional[bool] = None
     ):
         self._database_url = (
-            database_url if database_url is not None else conf.settings.DATABASE_URL
+            database_url
+            if database_url is not None
+            else conf.settings.get("DATABASE_URL")
         )
-        self._echo = echo if echo is not None else conf.settings.DATABASE_ECHO
+        self._echo = echo if echo is not None else conf.settings.get("DATABASE_ECHO")
 
         self._engine = None
         self._conn = None
