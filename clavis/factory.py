@@ -9,9 +9,9 @@ class TransactionFactory:
         self, database_url: ty.Optional[str] = None, echo: ty.Optional[bool] = None
     ):
         self.database_url = (
-            database_url if database_url is not None else settings.DATABASE_URL
+            database_url if database_url is not None else settings.get("DATABASE_URL")
         )
-        self.echo = echo if echo is not None else settings.DATABASE_ECHO
+        self.echo = echo if echo is not None else settings.get("DATABASE_ECHO")
 
     def transaction(self):
         return Transaction(database_url=self.database_url, echo=self.echo)
