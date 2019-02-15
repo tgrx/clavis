@@ -49,6 +49,6 @@ distribute:
   stage: deploy
   when: on_success
   only:
-    - master@tgrx/clavis
+    - releases@tgrx/clavis
   script:
     - twine upload -u "$PYPI_USERNAME" -p "$PYPI_PASSWORD" dist/*
