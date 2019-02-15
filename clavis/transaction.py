@@ -15,7 +15,10 @@ from . import states
 
 class Transaction(object):
     def __init__(
-        self, database_url: ty.Optional[str] = None, echo: ty.Optional[bool] = None
+            self,
+            database_url: ty.Optional[str] = None,
+            echo: ty.Optional[bool] = None,
+            engine: ty.Optional[Engine] = None,
     ):
         self._database_url = (
             database_url
@@ -25,6 +28,7 @@ class Transaction(object):
         self._echo = echo if echo is not None else conf.settings.get("DATABASE_ECHO")
 
         self._engine = None
+        self._external_engine = engine
         self._conn = None
         self._txn = None
         self._session = None
@@ -114,13 +118,16 @@ class Transaction(object):
         self._session = session.Session(bind=self._conn, origin=self)
 
     def __init_engine(self):
-        self.__verify_db()
+        if self._external_engine:
+            self._engine = self._external_engine
+        else:
+            self.__verify_db()
 
-        url = self._database_url
+            url = self._database_url
 
-        self._engine = sa.create_engine(
-            url, encoding="utf-8", poolclass=NullPool, echo=self._echo
-        )
+            self._engine = sa.create_engine(
+                url, encoding="utf-8", poolclass=NullPool, echo=self._echo
+            )
 
     def __verify_db(self):
         if not self._database_url:
