@@ -15,10 +15,10 @@ from . import states
 
 class Transaction(object):
     def __init__(
-            self,
-            database_url: ty.Optional[str] = None,
-            echo: ty.Optional[bool] = None,
-            engine: ty.Optional[Engine] = None,
+        self,
+        database_url: ty.Optional[str] = None,
+        echo: ty.Optional[bool] = None,
+        engine: ty.Optional[Engine] = None,
     ):
         self._database_url = (
             database_url
@@ -61,17 +61,17 @@ class Transaction(object):
 
         return tuple(result) if len(result) > 1 else result[0]
 
-    def remove_postponed(self, query_id: int):
+    def remove_postponed(self, query_id: int) -> ty.NoReturn:
         if query_id in self._postponed:
             del self._postponed[query_id]
 
-    def commit(self):
+    def commit(self) -> ty.NoReturn:
         if not self._session:
             raise states.Committed()
 
         self.session.commit()
 
-    def rollback(self):
+    def rollback(self) -> ty.NoReturn:
         if not self._session:
             raise states.RolledBack()
 

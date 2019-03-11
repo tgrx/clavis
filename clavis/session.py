@@ -1,9 +1,9 @@
-from sqlalchemy.orm import Session as _Session
+from sqlalchemy.orm import Session as _SqlAlchemySession
 
 from . import states
 
 
-class Session(_Session):
+class Session(_SqlAlchemySession):
     def __init__(self, *args, **kwargs):
         self.__origin = kwargs.pop("origin", None)
 
